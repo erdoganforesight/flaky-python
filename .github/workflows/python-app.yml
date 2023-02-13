@@ -1,0 +1,63 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Python application 2
+
+on:
+  workflow_dispatch:
+
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  #FORESIGHT_UPLOADER_SIGNER_URL: https://upload.service.runforesight.us
+  #WORKFLOW_TELEMETRY_BASE_URL: https://api.service.runforesight.us
+  FORESIGHT_LOG_LEVEL: DEBUG
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+        pip install pytest-rerunfailures
+        pip install pytest-json-report
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Collect Workflow Telemetry
+      if: success() || failure()
+      uses: runforesight/foresight-workflow-kit-action@v1
+      with:
+        api_key: ${{ secrets.APIKEY }}
+    - name: Test with pytest
+      continue-on-error: true
+      run: |
+        pytest --reruns 5 --json-report --json-report-file=report.json
+    #- name: Thundra Registry
+      #if: ${{ always() }}
+      #run: |
+        #npm config set registry ${{ secrets.THUNDRA_REGISTRY }}
+        #npm config set _auth ${{ secrets.THUNDRA_REGISTRY_AUTH }}
+    - name: Analyze Test and/or Coverage Results
+      uses: runforesight/foresight-test-kit-action@v1
+      if: ${{ always() }}
+      with:
+        api_key: ${{ secrets.APIKEY }}
+        test_format: JSON
+        test_framework: PYTEST
+        test_path: ./report.json
+        #cli_version: 123.457.999
+    - name: after-job1
+      run: echo Bambam1
+    - name: after-job2
+      run: echo Bambam2
